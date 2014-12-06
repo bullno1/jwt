@@ -1,0 +1,13 @@
+{application, jwt, [
+	{description, ""},
+	{vsn, "0.0.1"},
+	{registered, []},
+	{applications, [
+		kernel,
+		stdlib,
+		crypto,
+		jsx,
+		base64url	
+	]},
+	{env, []}
+]}.
