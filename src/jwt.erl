@@ -39,29 +39,25 @@ parse_token1(EncodedHeader, EncodedClaimSet, Signature, SigAlgs) ->
 
 verify_token(EncodedHeader, EncodedClaimSet, Signature, SigAlgs) ->
 	case decode(EncodedHeader) of
-		{ok, Header} ->
-			case proplists:get_value(<<"alg">>, Header) of
-				undefined -> {error, malformed_token};
-				BinAlgName ->
-					try binary_to_existing_atom(BinAlgName, latin1) of
-						AlgName ->
-							case find_algorithm(AlgName, SigAlgs) of
-								{ok, Alg} ->
-									Payload = <<EncodedHeader/binary, $., EncodedClaimSet/binary>>,
-									ExpectedSignature = sign(Payload, Alg),
-									case compare(ExpectedSignature, Signature) of
-										true -> ok;
-										false -> {error, invalid_signature}
-									end;
-								error ->
-									{error, unsupported_algorithm}
-							end
-					catch
-						error:badarg ->
+		{ok, #{<<"alg">> := BinAlgName}} ->
+			try binary_to_existing_atom(BinAlgName, latin1) of
+				AlgName ->
+					case find_algorithm(AlgName, SigAlgs) of
+						{ok, Alg} ->
+							Payload = <<EncodedHeader/binary, $., EncodedClaimSet/binary>>,
+							ExpectedSignature = sign(Payload, Alg),
+							case compare(ExpectedSignature, Signature) of
+								true -> ok;
+								false -> {error, invalid_signature}
+							end;
+						error ->
 							{error, unsupported_algorithm}
 					end
+			catch
+				error:badarg ->
+					{error, unsupported_algorithm}
 			end;
-		error ->
+		_ ->
 			{error, malformed_token}
 	end.
 
@@ -79,7 +75,7 @@ find_algorithm(Name, Algs) ->
 encode(JsonTerm) -> base64url:encode(jsx:encode(JsonTerm)).
 
 decode(Base64Json) ->
-	try jsx:decode(base64url:decode(Base64Json)) of
+	try jsx:decode(base64url:decode(Base64Json), [return_maps]) of
 		Result -> {ok, Result}
 	catch
 		error:badarg -> error
@@ -113,7 +109,7 @@ issue_token_test_() ->
 	).
 
 parse_token_test_() ->
-	ClaimSet = [{<<"sub">>, 1234567890}, {<<"name">>, <<"John Doe">>}, {<<"admin">>, true}],
+	ClaimSet = #{<<"sub">> => 1234567890, <<"name">> => <<"John Doe">>, <<"admin">> => true},
 	HS256 = {'HS256', <<"secret">>},
 	HS256_2 = {'HS256', <<"secret2">>},
 	HS512 = {'HS512', fun(Data, Secret) -> crypto:hmac(sha512, Secret, Data) end, <<"secret">>},
@@ -149,7 +145,7 @@ parse_token_test_() ->
 		{error, unsupported_algorithm})
 	].
 
-malformd_token_test_() ->
+malformed_token_test_() ->
 	[?_assertEqual(
 		parse_token(<<"abc">>, [none]),
 		{error, malformed_token})
