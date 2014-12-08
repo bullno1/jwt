@@ -1,5 +1,6 @@
 -module(jwt).
 -export([issue_token/2, parse_token/2]).
+-export_type([signing_algorithm/0, claim_set/0]).
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
